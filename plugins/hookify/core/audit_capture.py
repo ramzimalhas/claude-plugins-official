@@ -675,16 +675,16 @@ def _update_daily_rollup(stats: Dict[str, Any]) -> None:
         f"| {stats['integrity']} |"
     )
 
-    # Insert row before the blank line after the table header
-    # Find the table and append
-    table_end = existing.rfind("|")
-    if table_end >= 0:
-        # Find end of last table row
-        next_newline = existing.find("\n", table_end)
-        if next_newline >= 0:
-            existing = existing[: next_newline + 1] + row + "\n" + existing[next_newline + 1:]
-        else:
-            existing += "\n" + row + "\n"
+    # Insert row after the last table row (line starting and ending with |)
+    lines = existing.splitlines(keepends=True)
+    last_table_line = -1
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("|") and stripped.endswith("|"):
+            last_table_line = i
+    if last_table_line >= 0:
+        lines.insert(last_table_line + 1, row + "\n")
+        existing = "".join(lines)
     else:
         existing += row + "\n"
 

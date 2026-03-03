@@ -205,8 +205,9 @@ def load_rules(event: Optional[str] = None) -> List[Rule]:
     """
     rules = []
 
-    # Find all hookify.*.local.md files
-    pattern = os.path.join(".claude", "hookify.*.local.md")
+    # Find all hookify.*.local.md files from the user's home .claude directory
+    # Using absolute path so rules load regardless of working directory
+    pattern = os.path.join(os.path.expanduser("~"), ".claude", "hookify.*.local.md")
     files = glob.glob(pattern)
 
     for file_path in files:
