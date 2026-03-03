@@ -1,0 +1,6 @@
+{
+  "name": "file-organizer",
+  "description": "AI-powered file organization, classification, and filesystem auditing. Integrates with Sortio, Floxtop, file-organizer-mcp, DuckDB, and Hazel for non-destructive intelligent file management.",
+  "version": "1.0.0",
+  "skills": ["file-organizer"]
+}
