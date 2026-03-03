@@ -307,6 +307,18 @@
       "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/security-guidance"
     },
     {
+      "name": "1password-audit-consolidate",
+      "description": "Audit and consolidate multiple 1Password accounts with automated inventory comparison and migration",
+      "version": "1.0.0",
+      "author": {
+        "name": "Ramzi Malhas",
+        "email": "ramzi@trymaestro.app"
+      },
+      "source": "./plugins/1password-audit-consolidate",
+      "category": "security",
+      "tags": ["user-created"]
+    },
+    {
       "name": "code-review",
       "description": "Automated code review for pull requests using multiple specialized agents with confidence-based scoring to filter false positives",
       "author": {

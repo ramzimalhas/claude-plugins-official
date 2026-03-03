@@ -1,0 +1,28 @@
+{
+  "name": "1password-audit-consolidate",
+  "version": "1.0.0",
+  "description": "Audit and consolidate multiple 1Password accounts with automated inventory comparison and migration",
+  "author": {
+    "name": "Ramzi Malhas",
+    "email": "ramzi@trymaestro.app"
+  },
+  "tags": ["security", "password-manager", "automation", "audit"],
+  "commands": [
+    {
+      "name": "audit-accounts",
+      "description": "Audit all 1Password accounts and show inventory"
+    },
+    {
+      "name": "compare-inventories",
+      "description": "Compare items across accounts to find unique data"
+    },
+    {
+      "name": "export-unique",
+      "description": "Export unique items from accounts before abandoning"
+    },
+    {
+      "name": "consolidate",
+      "description": "Consolidate all accounts into primary account"
+    }
+  ]
+}
