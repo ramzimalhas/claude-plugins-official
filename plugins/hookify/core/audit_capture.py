@@ -133,17 +133,17 @@ def _extract_bash_file_targets(command: str) -> List[str]:
     targets = []
     for p in paths:
         p = p.rstrip("'\"`)],;")
-        if os.path.isfile(p):
+        if os.path.isfile(p) or os.path.isabs(p):
             targets.append(p)
     return list(set(targets))
 
 
 def _snapshot_key(file_path: str) -> str:
-    return hashlib.md5(file_path.encode()).hexdigest()
+    return hashlib.sha256(file_path.encode()).hexdigest()
 
 
 def _bash_snapshot_key(command: str) -> str:
-    return "bash-" + hashlib.md5(command.encode()).hexdigest()
+    return "bash-" + hashlib.sha256(command.encode()).hexdigest()
 
 
 def _compute_diff(before: str, after: str, file_path: str) -> str:
@@ -397,7 +397,7 @@ def _snapshot_bash_targets(tool_input: Dict[str, Any]) -> None:
         return
     snapshots = {}
     for path in targets:
-        snapshots[path] = {"sha256": _file_sha256(path), "existed": True}
+        snapshots[path] = {"sha256": _file_sha256(path), "existed": os.path.exists(path)}
     key = _bash_snapshot_key(command)
     with open(SNAPSHOT_DIR / f"{key}.json", "w") as f:
         json.dump({"command": command, "session_id": SESSION_ID, "targets": snapshots}, f)
@@ -442,13 +442,8 @@ def _audit_bash(tool_input: Dict[str, Any], tool_output: Optional[Any] = None) -
                     "post_exists": os.path.exists(path),
                     "changed": changed,
                 }
-                # Write .diff for changed bash targets too
-                if changed:
-                    pre_content = _read_file_text(path)
-                    if pre_content is not None:
-                        # Can't diff — we didn't store pre-content for bash targets
-                        # Just note the hash change
-                        pass
+                # For bash targets we currently record hash-only proof of change
+                # (pre-content is not stored for bash targets)
                 file_diffs.append(entry)
         except Exception:
             pass
@@ -615,13 +610,13 @@ def _write_session_report(stats: Dict[str, Any], records: List[Dict[str, Any]]) 
         "## Query This Session",
         "",
         "```bash",
-        f"# All mutations in this session",
+        "# All mutations in this session",
         f"jq -c 'select(.session_id==\"{sid}\" and .event==\"file_mutation\")' raw/{stats['date']}.jsonl",
         "",
-        f"# No-ops only (agent lies)",
+        "# No-ops only (agent lies)",
         f"jq -c 'select(.session_id==\"{sid}\" and .no_op==true)' raw/{stats['date']}.jsonl",
         "",
-        f"# Bash commands",
+        "# Bash commands",
         f"jq -r 'select(.session_id==\"{sid}\" and .event==\"bash_command\") | .command' raw/{stats['date']}.jsonl",
         "```",
         "",

@@ -33,7 +33,7 @@ def main():
         # Determine event type based on tool
         tool_name = input_data.get("tool_name", "")
         tool_input = input_data.get("tool_input", {})
-        tool_output = input_data.get("tool_output")
+        tool_output = input_data.get("tool_result")
         event = None
         if tool_name == "Bash":
             event = "bash"

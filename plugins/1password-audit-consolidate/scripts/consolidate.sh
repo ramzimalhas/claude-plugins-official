@@ -42,8 +42,11 @@ echo ""
 
 # Step 2: Find all export files
 echo "📦 Step 2: Finding export files..."
-EXPORT_FILES=$(find "$EXPORT_DIR" -name "*_unique_items_*.json" -type f)
-EXPORT_COUNT=$(echo "$EXPORT_FILES" | wc -l | tr -d ' ')
+EXPORT_FILES=()
+while IFS= read -r -d '' f; do
+  EXPORT_FILES+=("$f")
+done < <(find "$EXPORT_DIR" -name "*_unique_items_*.json" -type f -print0)
+EXPORT_COUNT=${#EXPORT_FILES[@]}
 
 if [ "$EXPORT_COUNT" -eq 0 ]; then
   echo "❌ Error: No export files found in $EXPORT_DIR"
@@ -73,43 +76,38 @@ echo ""
 TOTAL_IMPORTED=0
 TOTAL_FAILED=0
 
-{
-  echo "{"
-  echo "  \"consolidated_at\": \"$(date '+%Y-%m-%d %H:%M:%S')\","
-  echo "  \"primary_account\": \"$PRIMARY_ACCOUNT\","
-  echo "  \"destination_vault\": \"$VAULT_NAME\","
-  echo "  \"imports\": ["
+# Build per-export JSON fragments in a temp file
+IMPORTS_TMPFILE=$(mktemp)
 
-  echo "$EXPORT_FILES" | while read -r EXPORT_FILE; do
-    SOURCE_ACCOUNT=$(jq -r '.source_account' "$EXPORT_FILE")
-    ITEM_COUNT=$(jq '.items | length' "$EXPORT_FILE")
+for EXPORT_FILE in "${EXPORT_FILES[@]}"; do
+  SOURCE_ACCOUNT=$(jq -r '.source_account' "$EXPORT_FILE")
+  ITEM_COUNT=$(jq '.items | length' "$EXPORT_FILE")
 
-    echo "  Importing from: $SOURCE_ACCOUNT ($ITEM_COUNT items)"
+  echo "  Importing from: $SOURCE_ACCOUNT ($ITEM_COUNT items)" >&2
 
-    IMPORTED=0
-    FAILED=0
+  IMPORTED=0
+  FAILED=0
 
-    # Import each item
-    jq -c '.items[]' "$EXPORT_FILE" | while read -r ITEM_JSON; do
-      ITEM_TITLE=$(echo "$ITEM_JSON" | jq -r '.title')
-      ITEM_CATEGORY=$(echo "$ITEM_JSON" | jq -r '.category')
+  # Import each item — use process substitution to keep counters in scope
+  while IFS= read -r ITEM_JSON; do
+    ITEM_TITLE=$(echo "$ITEM_JSON" | jq -r '.title')
 
-      echo -n "    → $ITEM_TITLE ... "
+    echo -n "    → $ITEM_TITLE ... " >&2
 
-      # Create item in primary account
-      echo "$ITEM_JSON" | op item create \
-        --vault="$VAULT_NAME" \
-        --account="$PRIMARY_UUID" \
-        - &>/dev/null && {
-        echo "✓"
-        ((IMPORTED++))
-      } || {
-        echo "✗ FAILED"
-        ((FAILED++))
-      }
-    done
+    # Create item in primary account
+    if echo "$ITEM_JSON" | op item create \
+      --vault="$VAULT_NAME" \
+      --account="$PRIMARY_UUID" \
+      - &>/dev/null; then
+      echo "✓" >&2
+      ((IMPORTED++))
+    else
+      echo "✗ FAILED" >&2
+      ((FAILED++))
+    fi
+  done < <(jq -c '.items[]' "$EXPORT_FILE")
 
-    cat << EOF
+  cat >> "$IMPORTS_TMPFILE" << EOF
     {
       "source_account": "$SOURCE_ACCOUNT",
       "items_total": $ITEM_COUNT,
@@ -119,10 +117,18 @@ TOTAL_FAILED=0
     },
 EOF
 
-    ((TOTAL_IMPORTED += IMPORTED))
-    ((TOTAL_FAILED += FAILED))
-  done | sed '$ s/,$//'
+  ((TOTAL_IMPORTED += IMPORTED))
+  ((TOTAL_FAILED += FAILED))
+done
 
+# Build final JSON report
+{
+  echo "{"
+  echo "  \"consolidated_at\": \"$(date '+%Y-%m-%d %H:%M:%S')\","
+  echo "  \"primary_account\": \"$PRIMARY_ACCOUNT\","
+  echo "  \"destination_vault\": \"$VAULT_NAME\","
+  echo "  \"imports\": ["
+  sed '$ s/,$//' "$IMPORTS_TMPFILE"
   echo "  ],"
   echo "  \"summary\": {"
   echo "    \"total_imported\": $TOTAL_IMPORTED,"
@@ -130,6 +136,8 @@ EOF
   echo "  }"
   echo "}"
 } > "$CONSOLIDATION_REPORT"
+
+rm -f "$IMPORTS_TMPFILE"
 
 echo ""
 echo "✅ Consolidation complete!"
